@@ -1,0 +1,58 @@
+plugins {
+    id 'org.springframework.boot' version '2.7.1'
+    id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+    id "com.google.cloud.tools.jib" version "$jibPluginVersion"
+    id 'java'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '11'
+
+repositories {
+    mavenCentral()
+}
+
+ext {
+    set('springCloudVersion', "2021.0.3")
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
+}
+
+dependencyManagement {
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+    }
+}
+
+jib {
+    from {
+        image = "${baseImage}"
+    }
+    to {
+        if (project.hasProperty("repositoryUri")) {
+            image = "${repositoryUri}:${version}"
+        } else {
+            image = "${imagePrefix}${project.name}:${version}"
+        }
+        if (project.hasProperty("registryUser")
+                && project.hasProperty("registryPassword")) {
+            auth {
+                username = "${registryUser}" // Defined in 'gradle.properties'.
+                password = "${registryPassword}"
+            }
+        } else {
+            credHelper = 'ecr-login'
+        }
+    }
+    container {
+        creationTime = "USE_CURRENT_TIMESTAMP"
+        jvmFlags = ['-server', '-Xtune:virtualized', '-XX:+UseContainerSupport',
+                    '-XX:MaxRAMPercentage=80', '-Duser.timezone=UTC',
+                    '-Djava.security.egd=file:/dev/./urandom'
+        ]
+    }
+}
