@@ -9,5 +9,6 @@ source .env.config
 echo "--- 🚀 Deploying CDK stack..."
 cdk \
   -c environment="${ENVIRONMENT}" \
+  -c imagePrefix="${IMAGE_PREFIX}" \
   --require-approval never \
-  deploy
+  deploy --all

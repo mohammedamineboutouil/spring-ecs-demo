@@ -9,4 +9,5 @@ source .env.config
 echo "--- 🚀 Destroying CDK stack..."
 cdk \
   -c environment="${ENVIRONMENT}" \
+  -c imagePrefix="${IMAGE_PREFIX}" \
   destroy --all --force

@@ -1,4 +1,4 @@
-import * as cdk from 'aws-cdk-lib';
+import * as cdk from "aws-cdk-lib";
 import * as ecs from "aws-cdk-lib/aws-ecs";
 import * as ec2 from "aws-cdk-lib/aws-ec2";
 import * as cloudmap from "aws-cdk-lib/aws-servicediscovery";
@@ -10,7 +10,6 @@ interface StackProps extends cdk.StackProps {
 export class ClusterStack extends cdk.Stack {
     readonly vpc: ec2.Vpc;
     readonly cluster: ecs.Cluster;
-    readonly service: cloudmap.IService;
     readonly namespace: cloudmap.PrivateDnsNamespace;
 
     constructor(scope: cdk.App, id: string, props: StackProps) {
@@ -23,15 +22,45 @@ export class ClusterStack extends cdk.Stack {
             subnetConfiguration: [
                 {
                     cidrMask: 24,
-                    name: 'public-subnet',
+                    name: "public-subnet",
                     subnetType: ec2.SubnetType.PUBLIC,
                 },
                 {
                     cidrMask: 24,
-                    name: 'private-subnet',
+                    name: "private-subnet",
                     subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
-                }
-            ]
+                },
+            ],
+        });
+
+        // Configure VPC for required services
+        // ECR images are stored in s3, and thus s3 is needed
+        this.vpc.addGatewayEndpoint("S3Endpoint", {
+            service: ec2.GatewayVpcEndpointAwsService.S3,
+        });
+
+        this.vpc.addInterfaceEndpoint("EcrEndpoint", {
+            service: ec2.InterfaceVpcEndpointAwsService.ECR,
+            privateDnsEnabled: true,
+            open: true,
+        });
+
+        this.vpc.addInterfaceEndpoint("EcrDockerEndpoint", {
+            service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
+            privateDnsEnabled: true,
+            open: true,
+        });
+
+        this.vpc.addInterfaceEndpoint("LogsEndpoint", {
+            service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+            privateDnsEnabled: true,
+            open: true,
+        });
+
+        this.vpc.addInterfaceEndpoint("ApiGatewayEndpoint", {
+            service: ec2.InterfaceVpcEndpointAwsService.APIGATEWAY,
+            privateDnsEnabled: true,
+            open: true,
         });
 
         // Create cluster
@@ -46,19 +75,13 @@ export class ClusterStack extends cdk.Stack {
         this.namespace = new cloudmap.PrivateDnsNamespace(this, `${id}-namespace`, {
             name: props.dnsNamespace,
             description: `Service discovery namespace private dns ==> ${props.dnsNamespace}`,
-            vpc: this.vpc
+            vpc: this.vpc,
         });
 
-        /*        this.service = this.namespace.createService(`${id}-service`, {
-                    dnsRecordType: cloudmap.DnsRecordType.A_AAAA,
-                    dnsTtl: cdk.Duration.seconds(30),
-                    loadBalancer: true
-                });*/
-
-        this.cluster.addDefaultCloudMapNamespace({
-            name: props.dnsNamespace,
-            type: cloudmap.NamespaceType.DNS_PRIVATE,
-            vpc: this.vpc
-        });
+        // this.cluster.addDefaultCloudMapNamespace({
+        //     name: props.dnsNamespace,
+        //     type: cloudmap.NamespaceType.DNS_PRIVATE,
+        //     vpc: this.vpc
+        // });
     }
 }

@@ -1,26 +1,26 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import * as process from 'process';
-import * as clusters from './clusters';
+import * as clusters from './stacks';
 
 const app = new cdk.App();
 
 const environment = app.node.tryGetContext('environment');
+const imagePrefix = app.node.tryGetContext('imagePrefix');
 
-const stackName = `spring-ecs-demo-${environment}`;
+const stackName = `spring-ecs-test-${environment}`;
 cdk.Tags.of(app).add('application', stackName);
 cdk.Tags.of(app).add('environment', environment);
 
-const cluster = new clusters.ClusterStack(app, stackName, {
-    dnsNamespace: "hook.local",
-    env: {account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION},
+const clusterStack = new clusters.ClusterStack(app, `${stackName}-fargate-cluster`, {
+    dnsNamespace: "hooka.local",
 });
 
-const stack = new clusters.DefaultStack(app, stackName, {
-    vpc: cluster.vpc, cluster: cluster.cluster, namespace: cluster.namespace,
-    env: {account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION},
+const servicesStack = new clusters.ServicesStack(app, `${stackName}-fargate-services`, {
+    vpc: clusterStack.vpc,
+    cluster: clusterStack.cluster,
+    namespace: clusterStack.namespace,
+    imagePrefix
 });
-
-stack.addDependency(cluster);
+servicesStack.addDependency(clusterStack);
 
